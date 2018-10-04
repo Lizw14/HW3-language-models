@@ -247,36 +247,29 @@ class LanguageModel:
       #sys.stderr.write("Vocabulary size is %d types including OOV and EOS.\n" % len(self.vectors))
       t = 0
       gamma = gamma0
+      F1 =0
       for epoch in xrange(epochs):
-        prob_gen = self.filelogprob(filename)
-        F = (prob_gen / math.log(2) + self.lambdap * 
-                (np.multiply(self.X, self.X).sum() + np.multiply(self.Y, self.Y).sum())) / self.N
-        sys.stderr.write("epoch" + str(epoch) + ": F=" + str(float(F)) +"\n")
         for i in xrange(2, len(tokens_list)):
           gamma = gamma0 / (1 + gamma0 * 2 * self.lambdap / self.N * t)
-          #z_xy = np.exp(self.vectors[x].transpose() * self.X * self.E + 
-          #        self.vectors[y].transpose() * self.Y * self.E).sum()
-          #2_nd_term = np.exp(self.vectors[x].transpose() * self.X * self.E + 
-          #            self.vectors[y].transpose() * self.Y * self.E) * 
-          #            self.E.transpose() / z_xy
+
           x, y, z = tokens_list[i - 2], tokens_list[i - 1], tokens_list[i]
           z_xy_ = np.exp(self.vectors[x].transpose() * self.X * self.E + 
                   self.vectors[y].transpose() * self.Y * self.E)
-          second_term = z_xy_ * self.E.transpose() / z_xy_.sum()
+          second_term = (z_xy_ * self.E.transpose()) / z_xy_.sum()
           grad_X = self.vectors[x] * self.vectors[z].transpose() - self.vectors[x] * second_term - 2 * self.lambdap / self.N * self.X
           grad_Y = self.vectors[y] * self.vectors[z].transpose() - self.vectors[y] * second_term - 2 * self.lambdap / self.N * self.Y
           
           # check gradient computation
           is_check = 0
           if i % 300 == 0 and is_check:
-            random_X = 0.00001 * np.random.ranf(self.X.shape)
-            random_Y = 0.00001 * np.random.ranf(self.Y.shape)
-            F_i = self.prob(x, y, z)
+            random_X = 0.000001 * np.random.ranf(self.X.shape)
+            random_Y = 0.000001 * np.random.ranf(self.Y.shape)
+            F_i = math.log(self.prob(x, y, z)) - self.lambdap/self.N*(np.multiply(self.X,self.X).sum()+np.multiply(self.Y,self.Y).sum())
             self.X = self.X + random_X
             self.Y = self.Y + random_Y
-            F_i_post = self.prob(x, y, z)
+            F_i_post = math.log(self.prob(x, y, z)) - self.lambdap/self.N*(np.multiply(self.X,self.X).sum()+np.multiply(self.Y,self.Y).sum())
             F_rhs = np.multiply(random_X, grad_X).sum() + np.multiply(random_Y, grad_Y).sum()
-            sys.stderr.write("%d %d %f \n" % (epoch, i, F_i_post-F_i-F_rhs))
+            sys.stderr.write("%d %d %.10f \n" % (epoch, i, F_i_post-F_i-F_rhs))
             self.X = self.X - random_X
             self.Y = self.Y - random_Y
             probs = [self.prob(x,y,v) for v in self.vocab]
@@ -287,6 +280,10 @@ class LanguageModel:
           self.X = self.X + gamma * grad_X
           self.Y = self.Y + gamma * grad_Y
           t += 1
+        prob_gen = self.filelogprob(filename)
+        F = (prob_gen  - self.lambdap * 
+                (np.multiply(self.X, self.X).sum() + np.multiply(self.Y, self.Y).sum())) / self.N
+        sys.stderr.write("epoch" + str(epoch+1) + ": F=" + str(float(F)) +"\n")
       #####################
 
     sys.stderr.write("Finished training on %d tokens\n" % self.tokens[""])
