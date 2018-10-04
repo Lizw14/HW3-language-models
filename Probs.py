@@ -12,6 +12,7 @@ import math
 import random
 import re
 import sys
+import numpy as np
 
 BOS = 'BOS'   # special word type for context at Beginning Of Sequence
 EOS = 'EOS'   # special word type for observed token at End Of Sequence
@@ -64,7 +65,7 @@ class LanguageModel:
     #                             observed to follow y during training.
     # self.types_after[""]      = # of distinct word types observed during training.
 
-  def prob(self, x, y, z):
+  def prob(self, x, y, z, z_xy=None):
     """Computes a smoothed estimate of the trigram probability p(z | x,y)
     according to the language model.
     """
@@ -97,10 +98,30 @@ class LanguageModel:
           self.lambdap * self.vocab_size * self.tokens.get((y, z), 0) / self.tokens.get(y)) / 
           (self.tokens.get((x, y), 0) + self.lambdap * self.vocab_size))
       #sys.exit("BACKOFF_ADDL is not implemented yet (that's your job!)")
+    
     elif self.smoother == "BACKOFF_WB":
       sys.exit("BACKOFF_WB is not implemented yet (that's your job!)")
     elif self.smoother == "LOGLINEAR":
-      sys.exit("LOGLINEAR is not implemented yet (that's your job!)")
+      if x not in self.vocab:
+        x = OOV
+      if y not in self.vocab:
+        y = OOV
+      if z not in self.vocab:
+        z = OOV
+      if x not in self.vectors:
+        x = OOL
+      if y not in self.vectors:
+        y = OOL
+      if z not in self.vectors:
+        z = OOL
+      u_xyz = math.exp(self.vectors[x].transpose() * self.X * self.vectors[z] + 
+            self.vectors[y].transpose() * self.Y * self.vectors[z])
+      if not z_xy:
+        z_xy = np.exp(self.vectors[x].transpose() * self.X * self.E + self.vectors[y].transpose() * self.Y * self.E).sum()
+#      print u_xyz / z_xy
+      return u_xyz / z_xy
+      #sys.exit("LOGLINEAR is not implemented yet (that's your job!)")
+    
     else:
       sys.exit("%s has some weird value" % self.smoother)
 
@@ -133,7 +154,7 @@ class LanguageModel:
       for line in infile:
         arr = line.split()
         word = arr.pop(0)
-        self.vectors[word] = [float(x) for x in arr]
+        self.vectors[word] = np.mat([float(x) for x in arr]).transpose()
 
   def train (self, filename):
     """Read the training corpus and collect any information that will be needed
@@ -191,11 +212,19 @@ class LanguageModel:
       # Train the log-linear model using SGD.
 
       # Initialize parameters
-      self.X = [[0.0 for _ in range(self.dim)] for _ in range(self.dim)]
-      self.Y = [[0.0 for _ in range(self.dim)] for _ in range(self.dim)]
+      #self.X = [[0.0 for _ in range(self.dim)] for _ in range(self.dim)]
+      #self.Y = [[0.0 for _ in range(self.dim)] for _ in range(self.dim)]
+      self.X = np.mat(np.zeros([self.dim, self.dim]))
+      self.Y = np.mat(np.zeros([self.dim, self.dim]))
+      self.E = np.mat(np.zeros([self.dim, self.vocab_size]))
+
+      for index, value in enumerate(self.vocab):
+        if value not in self.vectors:
+          value = OOL
+        self.E[:,index] = self.vectors[value]
 
       # Optimization parameters
-      gamma0 = 0.1  # initial learning rate, used to compute actual learning rate
+      gamma0 = 0.01  # initial learning rate, used to compute actual learning rate
       epochs = 10  # number of passes
 
       self.N = len(tokens_list) - 2  # number of training instances
@@ -212,10 +241,52 @@ class LanguageModel:
       #
       # **************************
 
-      sys.stderr.write("Start optimizing.\n")
 
       #####################
       # TODO: Implement your SGD here
+      #sys.stderr.write("Vocabulary size is %d types including OOV and EOS.\n" % len(self.vectors))
+      t = 0
+      gamma = gamma0
+      for epoch in xrange(epochs):
+        prob_gen = self.filelogprob(filename)
+        F = (prob_gen / math.log(2) + self.lambdap * 
+                (np.multiply(self.X, self.X).sum() + np.multiply(self.Y, self.Y).sum())) / self.N
+        sys.stderr.write("epoch" + str(epoch) + ": F=" + str(float(F)) +"\n")
+        for i in xrange(2, len(tokens_list)):
+          gamma = gamma0 / (1 + gamma0 * 2 * self.lambdap / self.N * t)
+          #z_xy = np.exp(self.vectors[x].transpose() * self.X * self.E + 
+          #        self.vectors[y].transpose() * self.Y * self.E).sum()
+          #2_nd_term = np.exp(self.vectors[x].transpose() * self.X * self.E + 
+          #            self.vectors[y].transpose() * self.Y * self.E) * 
+          #            self.E.transpose() / z_xy
+          x, y, z = tokens_list[i - 2], tokens_list[i - 1], tokens_list[i]
+          z_xy_ = np.exp(self.vectors[x].transpose() * self.X * self.E + 
+                  self.vectors[y].transpose() * self.Y * self.E)
+          second_term = z_xy_ * self.E.transpose() / z_xy_.sum()
+          grad_X = self.vectors[x] * self.vectors[z].transpose() - self.vectors[x] * second_term - 2 * self.lambdap / self.N * self.X
+          grad_Y = self.vectors[y] * self.vectors[z].transpose() - self.vectors[y] * second_term - 2 * self.lambdap / self.N * self.Y
+          
+          # check gradient computation
+          is_check = 0
+          if i % 300 == 0 and is_check:
+            random_X = 0.00001 * np.random.ranf(self.X.shape)
+            random_Y = 0.00001 * np.random.ranf(self.Y.shape)
+            F_i = self.prob(x, y, z)
+            self.X = self.X + random_X
+            self.Y = self.Y + random_Y
+            F_i_post = self.prob(x, y, z)
+            F_rhs = np.multiply(random_X, grad_X).sum() + np.multiply(random_Y, grad_Y).sum()
+            sys.stderr.write("%d %d %f \n" % (epoch, i, F_i_post-F_i-F_rhs))
+            self.X = self.X - random_X
+            self.Y = self.Y - random_Y
+            probs = [self.prob(x,y,v) for v in self.vocab]
+            sys.stderr.write('prob distribution on vacab: '+str(probs)+'\n')
+            sys.stderr.write('sum to: '+str(np.array(probs).sum())+'\n')
+              
+
+          self.X = self.X + gamma * grad_X
+          self.Y = self.Y + gamma * grad_Y
+          t += 1
       #####################
 
     sys.stderr.write("Finished training on %d tokens\n" % self.tokens[""])
