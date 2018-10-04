@@ -51,6 +51,7 @@ class LanguageModel:
     # They are initialized in train() function and represented as two
     # dimensional lists.
     self.X, self.Y = None, None  
+    self.E = None
 
     # self.tokens[(x, y, z)] = # of times that xyz was observed during training.
     # self.tokens[(y, z)]    = # of times that yz was observed during training.
@@ -86,7 +87,16 @@ class LanguageModel:
       # as is required for any probability function.
 
     elif self.smoother == "BACKOFF_ADDL":
-      sys.exit("BACKOFF_ADDL is not implemented yet (that's your job!)")
+      if x not in self.vocab:
+        x = OOV
+      if y not in self.vocab:
+        y = OOV
+      if z not in self.vocab:
+        z = OOV
+      return ((self.tokens.get((x, y, z), 0) + 
+          self.lambdap * self.vocab_size * self.tokens.get((y, z), 0) / self.tokens.get(y)) / 
+          (self.tokens.get((x, y), 0) + self.lambdap * self.vocab_size))
+      #sys.exit("BACKOFF_ADDL is not implemented yet (that's your job!)")
     elif self.smoother == "BACKOFF_WB":
       sys.exit("BACKOFF_WB is not implemented yet (that's your job!)")
     elif self.smoother == "LOGLINEAR":
