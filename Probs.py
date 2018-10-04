@@ -65,7 +65,7 @@ class LanguageModel:
     #                             observed to follow y during training.
     # self.types_after[""]      = # of distinct word types observed during training.
 
-  def prob(self, x, y, z, z_xy=None):
+  def prob(self, x, y, z):
     """Computes a smoothed estimate of the trigram probability p(z | x,y)
     according to the language model.
     """
@@ -94,13 +94,22 @@ class LanguageModel:
         y = OOV
       if z not in self.vocab:
         z = OOV
+      # further backoff p(z|y) to p(z) if c(yz)==0
+      p_lambdap = 0
+      if self.tokens.get((y, z), 0) < 1:
+        p_lambdap = self.lambdap
+      p_yz = (self.tokens.get((y, z), 0) + 
+              p_lambdap * self.vocab_size * 
+              self.tokens.get(z, 0) / self.types_after.get('', 0)) / (
+                      self.tokens.get(y, 0) + p_lambdap * self.vocab_size)
       return ((self.tokens.get((x, y, z), 0) + 
-          self.lambdap * self.vocab_size * self.tokens.get((y, z), 0) / self.tokens.get(y)) / 
+          self.lambdap * self.vocab_size * p_yz) / 
           (self.tokens.get((x, y), 0) + self.lambdap * self.vocab_size))
       #sys.exit("BACKOFF_ADDL is not implemented yet (that's your job!)")
     
     elif self.smoother == "BACKOFF_WB":
       sys.exit("BACKOFF_WB is not implemented yet (that's your job!)")
+
     elif self.smoother == "LOGLINEAR":
       if x not in self.vocab:
         x = OOV
@@ -116,9 +125,7 @@ class LanguageModel:
         z = OOL
       u_xyz = math.exp(self.vectors[x].transpose() * self.X * self.vectors[z] + 
             self.vectors[y].transpose() * self.Y * self.vectors[z])
-      if not z_xy:
-        z_xy = np.exp(self.vectors[x].transpose() * self.X * self.E + self.vectors[y].transpose() * self.Y * self.E).sum()
-#      print u_xyz / z_xy
+      z_xy = np.exp(self.vectors[x].transpose() * self.X * self.E + self.vectors[y].transpose() * self.Y * self.E).sum()
       return u_xyz / z_xy
       #sys.exit("LOGLINEAR is not implemented yet (that's your job!)")
     
