@@ -12,6 +12,8 @@ import math
 import random
 import re
 import sys
+import scipy
+import scipy.misc
 import numpy as np
 
 BOS = 'BOS'   # special word type for context at Beginning Of Sequence
@@ -121,9 +123,13 @@ class LanguageModel:
         z = OOL
       u_xyz = math.exp(self.vectors[x].transpose() * self.X * self.vectors[z] + 
             self.vectors[y].transpose() * self.Y * self.vectors[z])
+      log_u_xyz = (self.vectors[x].transpose() * self.X * self.vectors[z] + 
+            self.vectors[y].transpose() * self.Y * self.vectors[z])
       z_xy = np.exp(self.vectors[x].transpose() * self.X * self.E + self.vectors[y].transpose() * self.Y * self.E).sum()
-      return u_xyz / z_xy
-      #sys.exit("LOGLINEAR is not implemented yet (that's your job!)")
+      log_z_xy = scipy.misc.logsumexp(self.vectors[x].transpose() * self.X * self.E + self.vectors[y].transpose() * self.Y * self.E)
+#      return u_xyz / z_xy
+      return math.exp(log_u_xyz - log_z_xy)
+    #sys.exit("LOGLINEAR is not implemented yet (that's your job!)")
     
     else:
       sys.exit("%s has some weird value" % self.smoother)
@@ -255,11 +261,16 @@ class LanguageModel:
           gamma = gamma0 / (1 + gamma0 * 2 * self.lambdap / self.N * t)
 
           x, y, z = tokens_list[i - 2], tokens_list[i - 1], tokens_list[i]
-          z_xy_ = np.exp(self.vectors[x].transpose() * self.X * self.E + 
+#          z_xy_ = np.exp(self.vectors[x].transpose() * self.X * self.E + 
+#                  self.vectors[y].transpose() * self.Y * self.E)
+          log_z_xy_ = (self.vectors[x].transpose() * self.X * self.E + 
                   self.vectors[y].transpose() * self.Y * self.E)
-          second_term = (z_xy_ * self.E.transpose()) / z_xy_.sum()
+          log_z_xy_sum = scipy.misc.logsumexp(log_z_xy_)
+#          second_term = (z_xy_ * self.E.transpose()) / z_xy_.sum()
+          second_term = (np.exp(log_z_xy_ - log_z_xy_sum)* self.E.transpose())
           grad_X = self.vectors[x] * self.vectors[z].transpose() - self.vectors[x] * second_term - 2 * self.lambdap / self.N * self.X
           grad_Y = self.vectors[y] * self.vectors[z].transpose() - self.vectors[y] * second_term - 2 * self.lambdap / self.N * self.Y
+          self.show_progress()
           
           # check gradient computation
           is_check = 0
