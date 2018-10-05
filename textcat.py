@@ -83,34 +83,103 @@ trainpath is the location of the training corpus
     # log base e to log base 2 at print time, by dividing by log(2).
     prior_gen = argv.pop(0)
     prior_gen = float(prior_gen)
+    
+    #file_len_acc = open("len_acc.txt","w")
+    total_cross_1 = 0.
+    total_cross_2 = 0.
+    
+
+    sum_acc1 = 0.
+    sum_acc2 = 0.
 
     count_1 = 0
     count_2 = 0
+    file_count = 0
     for testfile in argv:
+      file_count += 1
+
       log_prior_1 = math.log(prior_gen,2)  
       ce1 = lm1.filelogprob(testfile) / math.log(2)
       log_posterior_1 = ce1 + log_prior_1
-      #log_posterior_1 = ce1-1800 
-      #print(log_posterior_1)
 
       log_prior_2 = math.log(1-prior_gen,2)
       ce2 = lm2.filelogprob(testfile) / math.log(2)
       log_posterior_2 = ce2 + log_prior_2
-      #log_posterior_2 = ce2
-      #print(log_posterior_2)
+
+      total_cross_1 -= ce1
+      total_cross_2 -= ce2
+
       
       if log_posterior_1 > log_posterior_2:
-        print(train_file1 + "\t" + testfile + "\n")
+        #print(train_file1 + "\t" + testfile + "\n")
         count_1 += 1
       else:
-        print(train_file2 + "\t" + testfile + "\n")
+        #print(train_file2 + "\t" + testfile + "\n")
         count_2 += 1
+      
+      #filename_spt = testfile.split("/")
+      #length = filename_spt[2].split(".")[1]
+
+
+      CON = max(0-log_posterior_1, 0-log_posterior_2)
+      try:
+          p1 = pow(2,log_posterior_1+CON)
+          p2 = pow(2,log_posterior_2+CON)
+          
+          acc1 = p1/(p1+p2)
+          acc2 = p2/(p1+p2)
+          
+          #print(acc1)
+          #print(acc2)
+
+          sum_acc1 += acc1
+          sum_acc2 += acc2
+
+      except Exception as e:
+          #print(e)
+          
+          if log_posterior_1 > log_posterior_2:
+              sum_acc1 += 1
+              
+          else:
+              sum_acc2 += 1
+    
+
+    setname = testfile.split("/")[1]
+    
+    if setname == "english":
+        print(sum_acc1)
+        print(total_cross_1)
+
+    elif setname == "spanish":
+        print(sum_acc2)
+        print(total_cross_2)
+
+    print(file_count)
+    print(sum([lm1.num_tokens(testfile) for testfile in argv]))
+      
+    
+    
+        
+
+      #if filename_spt[1] == train_file1:
+
+          #file_len_acc.write(length+" "+str(log_posterior_1)+"\n")
+      
+      #elif filename_spt[1] == train_file2:
+
+          #file_len_acc.write(length+" "+str(log_posterior_2)+"\n")
+        
+    #file_len_acc.close()
 
     prob1 = round((float(count_1)/float(count_1+count_2))*100,2)
     prob2 = round((float(count_2)/float(count_1+count_2))*100,2)
 
-    print(str(count_1) + " files were more probably " + train_file1 +" (" + str(prob1) +"%)\n")
-    print(str(count_2) + " files were more probably " + train_file2 +" (" + str(prob2) +"%)\n")
+
+
+
+    #print(str(count_1) + " files were more probably " + train_file1 +" (" + str(prob1) +"%)\n")
+    #print(str(count_2) + " files were more probably " + train_file2 +" (" + str(prob2) +"%)\n")
   else:
     sys.exit(-1)
 
