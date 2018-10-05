@@ -94,16 +94,12 @@ class LanguageModel:
         y = OOV
       if z not in self.vocab:
         z = OOV
-      # further backoff p(z|y) to p(z) if c(yz)==0
-      #p_lambdap = 0
-      #if self.tokens.get((y, z), 0) < 1:
-      #  p_lambdap = self.lambdap
-      #p_yz = (self.tokens.get((y, z), 0) + 
-      #        p_lambdap * self.vocab_size * 
-      #        self.tokens.get(z, 0) / self.types_after.get('', 0)) / (
-      #                self.tokens.get(y, 0) + p_lambdap * self.vocab_size)
+      p_z = (self.tokens.get(z, 0) + self.lambdap) / (self.tokens.get('', 0) + self.lambdap * self.vocab_size)
+      p_yz = (self.tokens.get((y, z), 0) + 
+              self.lambdap * self.vocab_size * p_z) / (
+                      self.tokens.get(y, 0) + self.lambdap * self.vocab_size)
       return ((self.tokens.get((x, y, z), 0) + 
-          self.lambdap * self.vocab_size * self.tokens.get((y,z),0)/self.tokens.get(y,0)) / 
+          self.lambdap * self.vocab_size * p_yz) / 
           (self.tokens.get((x, y), 0) + self.lambdap * self.vocab_size))
       #sys.exit("BACKOFF_ADDL is not implemented yet (that's your job!)")
     
@@ -254,7 +250,6 @@ class LanguageModel:
       #sys.stderr.write("Vocabulary size is %d types including OOV and EOS.\n" % len(self.vectors))
       t = 0
       gamma = gamma0
-      F1 =0
       for epoch in xrange(epochs):
         for i in xrange(2, len(tokens_list)):
           gamma = gamma0 / (1 + gamma0 * 2 * self.lambdap / self.N * t)
