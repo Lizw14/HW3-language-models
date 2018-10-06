@@ -9,7 +9,7 @@ rm -r out2
 mkdir out1
 mkdir out2
 
-for c in $(seq 0.01 0.01 0.1)
+for c in $(seq 0.1 0.1 1)
 do
 	./textcat.py TRAIN loglinear$c chars-10.txt en.1K sp.1K
 	RESULT1=$(./textcat.py TEST loglinear$c chars-10.txt en.1K sp.1K 0.7 esdev/english/*/*)

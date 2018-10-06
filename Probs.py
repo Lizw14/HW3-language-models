@@ -133,6 +133,79 @@ class LanguageModel:
     
     else:
       sys.exit("%s has some weird value" % self.smoother)
+  
+
+  def prob_2gram(self,y,z):
+    """Computes a smoothed estimate of the bigram probability p(z|y)
+    according to the language model.
+    """
+    if self.smoother == "UNIFORM":
+      return float(1) / self.vocab_size
+    elif self.smoother == "ADDL":
+      if y not in self.vocab:
+        y = OOV
+      if z not in self.vocab:
+        z = OOV
+      return ((self.tokens.get((y, z), 0) + self.lambdap) /
+        (self.tokens.get((y), 0) + self.lambdap * self.vocab_size))
+
+      # Notice that summing the numerator over all values of typeZ
+      # will give the denominator.  Therefore, summing up the quotient
+      # over all values of typeZ will give 1, so sum_z p(z | ...) = 1
+      # as is required for any probability function.
+
+    elif self.smoother == "BACKOFF_ADDL":
+      if y not in self.vocab:
+        y = OOV
+      if z not in self.vocab:
+        z = OOV
+      p_z = (self.tokens.get(z, 0) + self.lambdap) / (self.tokens.get('', 0) + self.lambdap * self.vocab_size)
+      return ((self.tokens.get((y, z), 0) +
+          self.lambdap * self.vocab_size * p_z) /
+          (self.tokens.get((y), 0) + self.lambdap * self.vocab_size))
+      #sys.exit("BACKOFF_ADDL is not implemented yet (that's your job!)")
+
+    elif self.smoother == "BACKOFF_WB":
+      sys.exit("BACKOFF_WB is not implemented yet (that's your job!)")
+
+
+    else:
+      sys.exit("%s has some weird value" % self.smoother)
+
+  def prob_1gram(self,z):
+    """Computes a smoothed estimate of the bigram probability p(z|y)
+    according to the language model.
+    """
+    if self.smoother == "UNIFORM":
+      return float(1) / self.vocab_size
+    elif self.smoother == "ADDL":
+      if z not in self.vocab:
+        z = OOV
+      return ((self.tokens.get((z), 0) + self.lambdap) /
+        (self.lambdap * self.vocab_size))
+
+      # Notice that summing the numerator over all values of typeZ
+      # will give the denominator.  Therefore, summing up the quotient
+      # over all values of typeZ will give 1, so sum_z p(z | ...) = 1
+      # as is required for any probability function.
+
+    elif self.smoother == "BACKOFF_ADDL":
+      if z not in self.vocab:
+        z = OOV
+      p_z = (self.tokens.get(z, 0) + self.lambdap) / (self.tokens.get('', 0) + self.lambdap * self.vocab_size)
+      return ((self.tokens.get((y, z), 0) +
+          self.lambdap * self.vocab_size * p_z) /
+          (self.tokens.get((y), 0) + self.lambdap * self.vocab_size))
+      #sys.exit("BACKOFF_ADDL is not implemented yet (that's your job!)")
+
+    elif self.smoother == "BACKOFF_WB":
+      sys.exit("BACKOFF_WB is not implemented yet (that's your job!)")
+
+
+    else:
+      sys.exit("%s has some weird value" % self.smoother)
+
+
 
   def filelogprob(self, filename):
     """Compute the log probability of the sequence of tokens in file.
@@ -178,9 +251,10 @@ class LanguageModel:
     # Clear out any previous training
     self.tokens = { }
     self.types_after = { }
+    self.unigrams = []
     self.bigrams = []
     self.trigrams = [];
-
+  
     # While training, we'll keep track of all the trigram and bigram types
     # we observe.  You'll need these lists only for Witten-Bell backoff.
     # The real work:
