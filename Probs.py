@@ -67,7 +67,7 @@ class LanguageModel:
     #                             observed to follow y during training.
     # self.types_after[""]      = # of distinct word types observed during training.
 
-  def prob(self, x, y, z):
+  def prob(self, x, y, z, is_file=False):
     """Computes a smoothed estimate of the trigram probability p(z | x,y)
     according to the language model.
     """
@@ -100,9 +100,10 @@ class LanguageModel:
       p_yz = (self.tokens.get((y, z), 0) + 
               self.lambdap * self.vocab_size * p_z) / (
                       self.tokens.get(y, 0) + self.lambdap * self.vocab_size)
-      return ((self.tokens.get((x, y, z), 0) + 
+      out = ((self.tokens.get((x, y, z), 0) + 
           self.lambdap * self.vocab_size * p_yz) / 
           (self.tokens.get((x, y), 0) + self.lambdap * self.vocab_size))
+      return out
       #sys.exit("BACKOFF_ADDL is not implemented yet (that's your job!)")
     
     elif self.smoother == "BACKOFF_WB":
@@ -121,14 +122,17 @@ class LanguageModel:
         y = OOL
       if z not in self.vectors:
         z = OOL
-      u_xyz = math.exp(self.vectors[x].transpose() * self.X * self.vectors[z] + 
-            self.vectors[y].transpose() * self.Y * self.vectors[z])
+#      u_xyz = math.exp(self.vectors[x].transpose() * self.X * self.vectors[z] + 
+#            self.vectors[y].transpose() * self.Y * self.vectors[z])
       log_u_xyz = (self.vectors[x].transpose() * self.X * self.vectors[z] + 
             self.vectors[y].transpose() * self.Y * self.vectors[z])
-      z_xy = np.exp(self.vectors[x].transpose() * self.X * self.E + self.vectors[y].transpose() * self.Y * self.E).sum()
+#      z_xy = np.exp(self.vectors[x].transpose() * self.X * self.E + self.vectors[y].transpose() * self.Y * self.E).sum()
       log_z_xy = scipy.misc.logsumexp(self.vectors[x].transpose() * self.X * self.E + self.vectors[y].transpose() * self.Y * self.E)
 #      return u_xyz / z_xy
-      return math.exp(log_u_xyz - log_z_xy)
+      if is_file:
+        return float(log_u_xyz - log_z_xy)
+      else:
+        return float(math.exp(log_u_xyz - log_z_xy))
     #sys.exit("LOGLINEAR is not implemented yet (that's your job!)")
     
     else:
@@ -144,8 +148,12 @@ class LanguageModel:
     corpus = self.open_corpus(filename)
     for line in corpus:
       for z in line.split():
-        prob = self.prob(x, y, z)
-        logprob += math.log(prob)
+        if self.smoother == 'LOGLINEAR':
+          prob = self.prob(x, y, z, is_file=True)
+          logprob += prob
+        else:
+          prob = self.prob(x, y, z)
+          logprob += math.log(prob)
         x = y
         y = z
     logprob += math.log(self.prob(x, y, EOS))
