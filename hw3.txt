@@ -1,0 +1,125 @@
+Prints the log-probability of each file under a smoothed n-gram model.
+
+Usage:   ./fileprob.py TRAIN smoother lexicon trainpath
+         ./fileprob.py TEST smoother lexicon trainpath files...
+Example: ./fileprob.py TRAIN add0.01 /usr/local/data/cs465/hw-lm/lexicons/words-10.txt switchboard-small
+         ./fileprob.py TEST add0.01 /usr/local/data/cs465/hw-lm/lexicons/words-10.txt switchboard-small /usr/local/data/cs465/hw-lm/speech/sample*
+
+Possible values for smoother: uniform, add1, backoff_add1, backoff_wb, loglinear1
+  (the "1" in add1/backoff_add1 can be replaced with any real lambda >= 0
+   the "1" in loglinear1 can be replaced with any C >= 0 )
+lexicon is the location of the word vector file, which is only used in the loglinear model
+trainpath is the location of the training corpus
+  (the search path for this includes "/usr/local/data/cs465/hw-lm/All_Training/")
+
+./fileprob.py TRAIN add0.01 /usr/local/data/cs465/hw-lm/lexicons/words-10.txt /usr/local/data/cs465/hw-lm/All_Training/switchboard-small
+
+./fileprob.py TEST add0.01 /usr/local/data/cs465/hw-lm/lexicons/words-10.txt /usr/local/data/cs465/hw-lm/All_Training/switchboard-small /usr/local/data/cs465/hw-lm/speech/sample*
+
+cd /usr/local/data/cs465/hw-lm/code/python
+
+./textcat.py TRAIN add1 /usr/local/data/cs465/hw-lm/lexicons/words-10.txt gen spam
+
+./textcat.py TEST add1 /usr/local/data/cs465/hw-lm/lexicons/words-10.txt gen spam 0.7 /home/data/cs465/hw-lm/gen_spam/dev/gen/*
+
+./fileprob.py TRAIN loglinear_improv1 /usr/local/data/cs465/hw-lm/lexicons/chars-10.txt en.1K
+
+./fileprob.py TRAIN loglinear10 /usr/local/data/cs465/hw-lm/lexicons/words-10.txt gen
+
+./fileprob.py TEST loglinear1 /usr/local/data/cs465/hw-lm/lexicons/chars-10.txt en.1K 
+
+./fileprob.py Test loglinear10 /usr/local/data/cs465/hw-lm/lexicons/words-10.txt gen /home/data/cs465/hw-lm/gen_spam/dev/gen/*
+
+./textcat.py TRAIN loglinear chars-10.txt en.1K sp.1K
+
+./speechrec TRAIN loglinear1 /usr/local/data/cs465/hw-lm/lexicons/words-10.txt switchboard
+
+./speechrec TEST loglinear1 /usr/local/data/cs465/hw-lm/lexicons/words-10.txt switchboard /home/data/cs465/hw-lm/speech/dev/easy/*
+
+
+6c dev
+0.05
+(165.6604906951, 99.8846951211, 65.775795574, 0.6931401284313808)
+(164483.99219790002, 80853.063758, 83630.9284399, 4.819620024551688)
+(0.7071129707112971, 0.8333333333333334, 0.5798319327731093)
+1.00
+(164.86802212330002, 100.252405346, 64.6156167773, 0.6898243603485357)
+(163400.1972624, 80445.0584147, 82955.1388477, 4.787863257805907)
+(0.694560669456067, 0.8416666666666667, 0.5462184873949579)
+MAXIMUM!
+0.693140128431
+0.05
+
+MINIMUM!
+4.78786325781
+1.00
+MAXIMUM!
+0.707112970711
+0.05
+
+10
+(160.10541999, 100.139912635, 59.965507355, 0.6698971547698744)
+(160718.1842205, 79523.3619992, 81194.8222213, 4.709276377768988)
+(0.6778242677824268, 0.8333333333333334, 0.5210084033613446)
+MAXIMUM!
+0.66989715477
+10
+
+MINIMUM!
+4.70927637777
+10
+MAXIMUM!
+0.677824267782
+10
+
+6c dev-test
+0.05
+(531.158971112, 313.439186065, 217.719785047, 0.7187536821542625)
+(341217.611222, 168037.925724, 173179.685498, 4.8018915439564305)
+(0.7198917456021651, 0.845945945945946, 0.5934959349593496)
+1.00
+(530.334708999, 314.475371419, 215.85933758, 0.7176383071705007)
+(339068.086329, 167103.73574, 171964.350589, 4.771641682672146)
+(0.7239512855209743, 0.8432432432432433, 0.6043360433604336)
+MAXIMUM!
+0.718753682154
+0.05
+
+MINIMUM!
+4.77164168267
+1.00
+MAXIMUM!
+0.723951285521
+1.00
+
+10
+(522.096420437, 312.864274792, 209.232145645, 0.7064904200771313)
+(333942.2141, 164947.126798, 168995.087302, 4.699506242699728)
+(0.7144790257104194, 0.8513513513513513, 0.5772357723577236)
+MAXIMUM!
+0.706490420077
+10
+
+MINIMUM!
+4.6995062427
+10
+MAXIMUM!
+0.71447902571
+10
+
+6c backoff_add
+MINIMUM!
+3.93060987142
+0.151
+MAXIMUM!
+0.891213389121
+0.001
+
+6c add
+
+loglinear10 70
+loglinear_improv14 78.33
+improved 78.33(train for 20 epochs)
+add0.008 80
+backoff_add0.008 85
+

@@ -106,15 +106,17 @@ trainpath is the location of the training corpus
       ce2 = lm2.filelogprob(testfile) / math.log(2)
       log_posterior_2 = ce2 + log_prior_2
 
-      total_cross_1 -= log_posterior_1
-      total_cross_2 -= log_posterior_2
+      total_cross_1 -= ce1
+      total_cross_2 -= ce2
+#      total_cross_1 -= log_posterior_1
+#      total_cross_2 -= log_posterior_2
 
       
       if log_posterior_1 > log_posterior_2:
-        print(train_file1 + "\t" + testfile)
+        #print(train_file1 + "\t" + testfile + "\n")
         count_1 += 1
       else:
-        print(train_file2 + "\t" + testfile)
+        #print(train_file2 + "\t" + testfile + "\n")
         count_2 += 1
       
       #filename_spt = testfile.split("/")
@@ -145,19 +147,24 @@ trainpath is the location of the training corpus
               sum_acc2 += 1
     
 
-    setname = testfile.split("/")[1]
+    setname = testfile.split("/")[-3]
     
-    #if setname == "english":
-     #   print(sum_acc1)
-      #  print(total_cross_1)
+    if setname == "english":
+        print(sum_acc1)
+        print(total_cross_1)
 
-   # elif setname == "spanish":
-    #    print(sum_acc2)
-     #   print(total_cross_2)
+    elif setname == "spanish":
+        print(sum_acc2)
+        print(total_cross_2)
 
-   # print(file_count)
-   # print(sum([lm1.num_tokens(testfile) for testfile in argv]))
+    print(file_count)
+    print(sum([lm1.num_tokens(testfile) for testfile in argv]))
       
+    if setname == "english":
+        print(count_1)
+
+    elif setname == "spanish":
+        print(count_2)
     
     
         
@@ -178,8 +185,8 @@ trainpath is the location of the training corpus
 
 
 
-    print(str(count_1) + " files were more probably " + train_file1 +" (" + str(prob1) +"%")
-    print(str(count_2) + " files were more probably " + train_file2 +" (" + str(prob2) +"%)")
+    #print(str(count_1) + " files were more probably " + train_file1 +" (" + str(prob1) +"%)\n")
+    #print(str(count_2) + " files were more probably " + train_file2 +" (" + str(prob2) +"%)\n")
   else:
     sys.exit(-1)
 
