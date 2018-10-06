@@ -77,9 +77,11 @@ trainpath is the location of the training corpus
     total_cross_entropy = 0.
     for testfile in argv:
       ce = lm.filelogprob(testfile) / math.log(2)
-      print("{:g}\t{}".format(ce, testfile))
+      #print("{:g}\t{}".format(ce, testfile))
       total_cross_entropy -= ce
-    print('Overall cross-entropy:\t{0:.5f}'.format(total_cross_entropy/sum([lm.num_tokens(testfile) for testfile in argv])))
+    print(total_cross_entropy)
+    print(sum([lm.num_tokens(testfile) for testfile in argv]))
+    #print('Overall cross-entropy:\t{0:.5f}'.format(total_cross_entropy/sum([lm.num_tokens(testfile) for testfile in argv])))
   else:
     sys.exit(-1)
 

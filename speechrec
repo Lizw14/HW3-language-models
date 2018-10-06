@@ -34,7 +34,7 @@ def get_model_filename(smoother, lexicon, train_file):
 def main():
   course_dir = '/usr/local/data/cs465/'
 
-  if len(sys.argv) < 5 or (sys.argv[1] == 'TRAIN' and len(sys.argv) != 5):
+  if len(sys.argv) < 5 or (sys.argv[1] == 'TRAIN' and len(sys.argv) != 6):
     print("""
 Prints the log-probability of each file under a smoothed n-gram model.
 
@@ -56,9 +56,10 @@ trainpath is the location of the training corpus
   argv = sys.argv[2:]
 
   smoother = argv.pop(0)
+  num_gram = int(argv.pop(0))
   lexicon = argv.pop(0)
   train_file = argv.pop(0)
-
+  
   if mode == 'TRAIN':
     lm = Probs.LanguageModel()
     lm.set_smoother(smoother)
@@ -86,17 +87,33 @@ trainpath is the location of the training corpus
           x, y = "BOS", "BOS" 
           log_pw = 0.
           for z in lines[i].split("\t")[3].split():
-              prob = lm.prob(x, y, z)
+              if num_gram == 3:
+                prob = lm.prob(x, y, z)
+              elif num_gram ==2:
+                prob = lm.prob_2gram(y,z)
+              else:
+                prob = lm.prob_1gram(z)
               log_pw += math.log(prob)
               x = y
               y = z
+          if num_gram == 3:
               log_pw += math.log(lm.prob(x, y, "EOS"))
+          elif num_gram ==2:
+              log_pw += math.log(lm.prob_2gram(y, "EOS"))
+          else:
+              log_pw += math.log(lm.prob_1gram("EOS"))
+
           log_pUw = float(lines[i].split("\t")[1])
-          log_join = log_pw + log_pUw
+          print(log_pUw)
+          print(log_pw)
+          log_join = log_pw/math.log(2) + log_pUw
+          print(log_join)
+          print(lines[i].split("\t")[0])
           if log_join > max_logjoin:
               max_logjoin = log_join 
               max_error = lines[i].split("\t")[0]
               max_sentence = lines[i].split("\t")[3]
+              
       print(lines[0])
       print(max_sentence)
       print(max_error + "\t" + testfile)
