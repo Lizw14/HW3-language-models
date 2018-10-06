@@ -135,6 +135,33 @@ class LanguageModel:
         return float(math.exp(log_u_xyz - log_z_xy))
     #sys.exit("LOGLINEAR is not implemented yet (that's your job!)")
     
+    elif self.smoother == "LOGLINEAR_IMPROV":
+      if x not in self.vocab:
+        x = OOV
+      if y not in self.vocab:
+        y = OOV
+      if z not in self.vocab:
+        z = OOV
+      if x not in self.vectors:
+        x = OOL
+      if y not in self.vectors:
+        y = OOL
+      if z not in self.vectors:
+        z = OOL
+#      u_xyz = math.exp(self.vectors[x].transpose() * self.X * self.vectors[z] + 
+#            self.vectors[y].transpose() * self.Y * self.vectors[z])
+      log_u_xyz = (self.vectors[x].transpose() * self.X * self.vectors[z] + self.vectors[y].transpose() * self.Y * self.vectors[z] + self.beta * math.log(self.tokens.get(z, 0)+1))
+#      log_u_xyz = (self.vectors[x].transpose() * self.X * self.vectors[z] + self.vectors[y].transpose() * self.Y * self.vectors[z])
+#      z_xy = np.exp(self.vectors[x].transpose() * self.X * self.E + self.vectors[y].transpose() * self.Y * self.E).sum()
+      log_z_xy = scipy.misc.logsumexp(self.vectors[x].transpose() * self.X * self.E + self.vectors[y].transpose() * self.Y * self.E + self.beta * self.K)
+#      return u_xyz / z_xy
+      if is_file:
+        #print(self.beta, self.tokens.get(z,0), log_u_xyz, log_z_xy, log_u_xyz - log_z_xy)
+        return float(log_u_xyz - log_z_xy)
+      else:
+        return float(math.exp(log_u_xyz - log_z_xy))
+    #sys.exit("LOGLINEAR is not implemented yet (that's your job!)")
+
     else:
       sys.exit("%s has some weird value" % self.smoother)
   
@@ -209,75 +236,6 @@ class LanguageModel:
     else:
       sys.exit("%s has some weird value" % self.smoother)
 
-  def prob_2gram(self,y,z):
-    """Computes a smoothed estimate of the bigram probability p(z|y)
-    according to the language model.
-    """
-    if self.smoother == "UNIFORM":
-      return float(1) / self.vocab_size
-    elif self.smoother == "ADDL":
-      if y not in self.vocab:
-        y = OOV
-      if z not in self.vocab:
-        z = OOV
-      return ((self.tokens.get((y, z), 0) + self.lambdap) /
-        (self.tokens.get((y), 0) + self.lambdap * self.vocab_size))
-
-      # Notice that summing the numerator over all values of typeZ
-      # will give the denominator.  Therefore, summing up the quotient
-      # over all values of typeZ will give 1, so sum_z p(z | ...) = 1
-      # as is required for any probability function.
-
-    elif self.smoother == "BACKOFF_ADDL":
-      if y not in self.vocab:
-        y = OOV
-      if z not in self.vocab:
-        z = OOV
-      p_z = (self.tokens.get(z, 0) + self.lambdap) / (self.tokens.get('', 0) + self.lambdap * self.vocab_size)
-      return ((self.tokens.get((y, z), 0) +
-          self.lambdap * self.vocab_size * p_z) /
-          (self.tokens.get((y), 0) + self.lambdap * self.vocab_size))
-                                                                                        
-    else:
-      sys.exit("%s has some weird value" % self.smoother)
-
-  def prob_1gram(self,z):
-    """Computes a smoothed estimate of the bigram probability p(z|y)
-    according to the language model.
-    """
-    if self.smoother == "UNIFORM":
-      return float(1) / self.vocab_size
-    elif self.smoother == "ADDL":
-      if z not in self.vocab:
-        z = OOV
-      return ((self.tokens.get((z), 0) + self.lambdap) /
-        (self.lambdap * self.vocab_size))
-
-      # Notice that summing the numerator over all values of typeZ
-      # will give the denominator.  Therefore, summing up the quotient
-      # over all values of typeZ will give 1, so sum_z p(z | ...) = 1
-      # as is required for any probability function.
-
-    elif self.smoother == "BACKOFF_ADDL":
-      if z not in self.vocab:
-        z = OOV
-      p_z = (self.tokens.get(z, 0) + self.lambdap) / (self.tokens.get('', 0) + self.lambdap * self.vocab_size)
-      return ((self.tokens.get((y, z), 0) +
-          self.lambdap * self.vocab_size * p_z) /
-          (self.tokens.get((y), 0) + self.lambdap * self.vocab_size))
-      #sys.exit("BACKOFF_ADDL is not implemented yet (that's your job!)")
-
-    elif self.smoother == "BACKOFF_WB":
-      sys.exit("BACKOFF_WB is not implemented yet (that's your job!)")
-
-
-    else:
-      sys.exit("%s has some weird value" % self.smoother)
-
-
-
-
-
 
   def filelogprob(self, filename):
     """Compute the log probability of the sequence of tokens in file.
@@ -289,7 +247,7 @@ class LanguageModel:
     corpus = self.open_corpus(filename)
     for line in corpus:
       for z in line.split():
-        if self.smoother == 'LOGLINEAR':
+        if self.smoother[:9] == 'LOGLINEAR':
           prob = self.prob(x, y, z, is_file=True)
           logprob += prob
         else:
@@ -297,7 +255,10 @@ class LanguageModel:
           logprob += math.log(prob)
         x = y
         y = z
-    logprob += math.log(self.prob(x, y, EOS))
+    if self.smoother[:9] == 'LOGLINEAR':
+      logprob += self.prob(x, y, EOS, is_file=True)
+    else:
+      logprob += math.log(self.prob(x, y, EOS))
     corpus.close()
     return logprob
 
@@ -357,7 +318,7 @@ class LanguageModel:
         if z not in self.vocab:
           z = OOV
         # substitute out-of-lexicon words with OOL symbol (only for log-linear models)
-        if self.smoother == 'LOGLINEAR' and z not in self.vectors:
+        if self.smoother[:9] == 'LOGLINEAR' and z not in self.vectors:
           z = OOL
         self.count(x, y, z)
         self.show_progress()
@@ -449,6 +410,100 @@ class LanguageModel:
         sys.stderr.write("epoch" + str(epoch+1) + ": F=" + str(float(F)) +"\n")
       #####################
 
+    if self.smoother == 'LOGLINEAR_IMPROV': 
+      # Train the log-linear model using SGD.
+
+      # Initialize parameters
+      #self.X = [[0.0 for _ in range(self.dim)] for _ in range(self.dim)]
+      #self.Y = [[0.0 for _ in range(self.dim)] for _ in range(self.dim)]
+      self.X = np.mat(np.zeros([self.dim, self.dim]))
+      self.Y = np.mat(np.zeros([self.dim, self.dim]))
+      self.beta = 0
+      self.E = np.mat(np.zeros([self.dim, self.vocab_size]))
+      self.K = np.mat(np.zeros([1,self.vocab_size]))
+
+      for index, value in enumerate(self.vocab):
+        if value not in self.vectors:
+          value = OOL
+        self.E[:,index] = self.vectors[value]
+        self.K[0,index] = math.log(self.tokens.get(value, 0)+1)
+        #self.K[0,index] = 0
+
+      # Optimization parameters
+      gamma0 = 0.01  # initial learning rate, used to compute actual learning rate
+      epochs = 10  # number of passes
+
+      self.N = len(tokens_list) - 2  # number of training instances
+
+      # ******** COMMENT *********
+      # In log-linear model, you will have to do some additional computation at
+      # this point.  You can enumerate over all training trigrams as following.
+      #
+      # for i in range(2, len(tokens_list)):
+      #   x, y, z = tokens_list[i - 2], tokens_list[i - 1], tokens_list[i]
+      #
+      # Note1: self.lambdap is the regularizer constant C
+      # Note2: You can use self.show_progress() to log progress.
+      #
+      # **************************
+
+
+      #####################
+      # TODO: Implement your SGD here
+      #sys.stderr.write("Vocabulary size is %d types including OOV and EOS.\n" % len(self.vectors))
+      t = 0
+      gamma = gamma0
+      for epoch in xrange(epochs):
+        for i in xrange(2, len(tokens_list)):
+          gamma = gamma0 / (1 + gamma0 * 2 * self.lambdap / self.N * t)
+
+          x, y, z = tokens_list[i - 2], tokens_list[i - 1], tokens_list[i]
+#          z_xy_ = np.exp(self.vectors[x].transpose() * self.X * self.E + 
+#                  self.vectors[y].transpose() * self.Y * self.E)
+          log_z_xy_ = (self.vectors[x].transpose() * self.X * self.E + 
+                  self.vectors[y].transpose() * self.Y * self.E)
+#          sys.stderr.write(str(log_z_xy_.shape)+' '+str((self.beta*self.K).shape)+'\n')
+          log_z_xy_ = log_z_xy_ + self.beta * self.K
+          log_z_xy_sum = scipy.misc.logsumexp(log_z_xy_)
+#          second_term = (z_xy_ * self.E.transpose()) / z_xy_.sum()
+          second_term = (np.exp(log_z_xy_ - log_z_xy_sum)* self.E.transpose())
+          grad_X = self.vectors[x] * self.vectors[z].transpose() - self.vectors[x] * second_term - 2 * self.lambdap / self.N * self.X
+          grad_Y = self.vectors[y] * self.vectors[z].transpose() - self.vectors[y] * second_term - 2 * self.lambdap / self.N * self.Y
+          grad_beta = math.log(self.tokens.get(z, 0)+1) - np.exp(log_z_xy_-log_z_xy_sum) * self.K.transpose() - 2 * self.lambdap / self.N * self.beta
+          #grad_beta = 0 - np.exp(log_z_xy_) * self.K.transpose() - 2 * self.lambdap / self.N * self.beta
+          self.show_progress()
+          
+          # check gradient computation
+          is_check = 0
+          if i % 300 == 0 and is_check:
+            random_X = 0.000001 * np.random.ranf(self.X.shape)
+            random_Y = 0.000001 * np.random.ranf(self.Y.shape)
+            random_beta = 0.000001 * np.random.ranf()
+            F_i = self.prob(x, y, z, is_file=True) - self.lambdap/self.N*(np.multiply(self.X,self.X).sum()+np.multiply(self.Y,self.Y).sum()+self.beta*self.beta)
+            self.X = self.X + random_X
+            self.Y = self.Y + random_Y
+            self.beta = self.beta + random_beta
+            F_i_post = self.prob(x, y, z, is_file=True) - self.lambdap/self.N*(np.multiply(self.X,self.X).sum()+np.multiply(self.Y,self.Y).sum()+self.beta*self.beta)
+            F_rhs = np.multiply(random_X, grad_X).sum() + np.multiply(random_Y, grad_Y).sum() + random_beta * grad_beta
+            sys.stderr.write("%d %d %.10f \n" % (epoch, i, F_i_post-F_i-F_rhs))
+            self.X = self.X - random_X
+            self.Y = self.Y - random_Y
+            self.beta = self.beta - random_beta
+            #probs = [self.prob(x,y,v) for v in self.vocab]
+            #sys.stderr.write('prob distribution on vacab: '+str(probs)+'\n')
+            #sys.stderr.write('sum to: '+str(np.array(probs).sum())+'\n')
+              
+
+          self.X = self.X + gamma * grad_X
+          self.Y = self.Y + gamma * grad_Y
+          self.beta = self.beta + gamma * grad_beta
+          t += 1
+        prob_gen = self.filelogprob(filename)
+        F = (prob_gen  - self.lambdap * 
+                (np.multiply(self.X, self.X).sum() + np.multiply(self.Y, self.Y).sum() + self.beta*self.beta)) / self.N
+        sys.stderr.write("epoch" + str(epoch+1) + ": F=" + str(float(F)) +"\n")
+      #####################
+
     sys.stderr.write("Finished training on %d tokens\n" % self.tokens[""])
 
   def count(self, x, y, z):
@@ -528,6 +583,8 @@ class LanguageModel:
       self.smoother = "BACKOFF_WB"
     elif smoother_name.lower() == 'loglinear':
       self.smoother = "LOGLINEAR"
+    elif smoother_name.lower() == 'loglinear_improv':
+      self.smoother = "LOGLINEAR_IMPROV"
     else:
       sys.exit("Don't recognize smoother name '%s'" % smoother_name)
     
