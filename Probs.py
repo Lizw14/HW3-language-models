@@ -344,8 +344,8 @@ class LanguageModel:
         self.E[:,index] = self.vectors[value]
 
       # Optimization parameters
-      gamma0 = 0.01  # initial learning rate, used to compute actual learning rate
-      epochs = 10  # number of passes
+      gamma0 = self.gamma0  # initial learning rate, used to compute actual learning rate
+      epochs = self.epochs  # number of passes
 
       self.N = len(tokens_list) - 2  # number of training instances
 
@@ -430,8 +430,8 @@ class LanguageModel:
         #self.K[0,index] = 0
 
       # Optimization parameters
-      gamma0 = 0.01  # initial learning rate, used to compute actual learning rate
-      epochs = 10  # number of passes
+      gamma0 = self.gamma0  # initial learning rate, used to compute actual learning rate
+      epochs = self.epochs  # number of passes
 
       self.N = len(tokens_list) - 2  # number of training instances
 
@@ -573,6 +573,8 @@ class LanguageModel:
       else:
         self.lambdap = None
 
+    self.gamma0 = 0.01
+    self.epochs = 10
     if smoother_name.lower() == 'uniform':
       self.smoother = "UNIFORM"
     elif smoother_name.lower() == 'add':
@@ -585,6 +587,11 @@ class LanguageModel:
       self.smoother = "LOGLINEAR"
     elif smoother_name.lower() == 'loglinear_improv':
       self.smoother = "LOGLINEAR_IMPROV"
+    elif smoother_name.lower() == 'improved':
+      self.smoother = "LOGLINEAR_IMPROV"
+      self.lambdap = 14.0
+      self.gamma0 = 0.01
+      self.epochs = 20
     else:
       sys.exit("Don't recognize smoother name '%s'" % smoother_name)
     
